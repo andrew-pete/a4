@@ -68,9 +68,23 @@
 
 // TODO#A4: Declare any varyings here.
 
+/* taken from phong.html... May need to alter */
+
+varying vec2 vUv; // UV coordinates.
+varying vec3 vNormal; // Normal in eye space.
+varying vec4 vPosition; // Position in eye space.
+varying vec3 reflection; // Reflection direction in eye space
+
 void main() {
     // TODO#A4: Compute gl_Position, as well as any varyings you need in the fragment shader.
-    gl_Position = vec4(1.0); // placeholder
+    vPosition = modelViewMatrix * vec4(position, 1.0);
+    // Calculate projected point.
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+    // We have to use the inverse transpose of the modelview matrix for the normal.
+    vNormal = normalize((normalMatrix * normal).xyz);
+    reflection = 2*dot(vNormal, vPosition.xyz) * vNormal - vPosition.xyz;
+    vUv = uv;
 }
         </script>
 <!-----------------------------------------------------------------------------
@@ -81,11 +95,20 @@ uniform float exposure; // Multiply the final color by this.
 
 uniform samplerCube environmentMap; // Use samplerCube to look up into this.
 
+varying vec3 reflection; // Reflection direction in eye space
+
 // TODO#A4: Declare any varyings here.
 
 void main() {
     // TODO#A4: Implement the mirror reflection here.
-    gl_FragColor = vec4(1.0); // placeholder
+    vec3 N = normalize(vNormal);
+    vec3 V = normalize(-vPosition.xyz);
+    // calculate reflection direction
+    vec4 finalColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+    finalColor += textureCube(environmentMap, reflection);
+
+    gl_FragColor = finalColor * exposure; // placeholder
 }
         </script>
 <!-----------------------------------------------------------------------------
@@ -96,10 +119,10 @@ void main() {
             commonInit();
             init();
             animate();
-            
+
             function init() {
                 loadEnvironmentMap('data/textures/LancellottiChapel/');
-            
+
                 addLight(new THREE.Vector3(50, 50, 100), new THREE.Vector3(0.8, 0.8, 0.8));
                 addLight(new THREE.Vector3(-50, -50, -50), new THREE.Vector3(0.5, 0.5, 0.6));
             }
