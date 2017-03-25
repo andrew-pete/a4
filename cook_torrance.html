@@ -117,6 +117,7 @@ void main() {
 
   for (int i = 0; i < NUM_LIGHTS; i++) {
     vec3 lightPosition = lightPositions[i];
+    vec4 lightColor = vec4(lightColors[i], 0.0);
 
     float r = length(lightPosition - vPosition.xyz);
     vec3 L = normalize(lightPosition - vPosition.xyz);
@@ -137,9 +138,9 @@ void main() {
     float G = min(min(term1, term2), term3);
 
     // calculate final color
-    vec4 Kd = texture2D(diffuseTexture, vUv);
-    vec4 Ks = vec4(1.0, 1.0, 1.0, 0.0);
-    finalColor += (Ks * (F/PI) * D*G / (dot(N,V)*dot(N,L)) + Kd) * max(dot(N,L), 0.0) / (r*r);
+    vec4 k_d = texture2D(diffuseTexture, vUv);
+    vec4 k_s = vec4(1.0, 1.0, 1.0, 0.0);
+    finalColor += (k_s * (F/PI) * D*G / (dot(N,V)*dot(N,L)) + k_d) * max(dot(N,L), 0.0) * lightColor / (r*r);
   }
 
   gl_FragColor = finalColor * exposure;
