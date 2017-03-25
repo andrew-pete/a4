@@ -71,13 +71,21 @@
 // attribute vec2 uv;
 
 // TODO#A4: Declare any varyings here.
-varying vec2 vUv; // UV coordinates.
-varying vec3 vNormal; // Normal in eye space.
-varying vec4 vPosition; // Pposition in eye space.
+varying vec2 vUv;       // UV coordinates
+varying vec3 vNormal;   // Normal in eye space
+varying vec4 vPosition; // Position in eye space
 
 void main() {
-    // TODO#A4: Compute gl_Position, as well as any varyings you need in the fragment shader.
-    gl_Position = vec4(1.0); // placeholder
+  // TODO#A4: Compute gl_Position, as well as any varyings you need in the fragment shader.
+  // Calculate point in eye space
+  vPosition = modelViewMatrix * vec4(position, 1.0);
+
+  // Calculate projected point
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+  // We have to use the inverse transpose of the modelview matrix for the normal
+  vNormal = normalize((normalMatrix * normal).xyz);
+  vUv = uv;
 }
         </script>
 <!-----------------------------------------------------------------------------
@@ -93,10 +101,48 @@ uniform float roughness;
 uniform sampler2D diffuseTexture; // k_d, the diffuse color. Use texture2D to look up into this.
 
 // TODO#A4: Declare any varyings here.
+varying vec2 vUv;       // UV coordinates
+varying vec3 vNormal;   // Normal in eye space
+varying vec4 vPosition; // Position in eye space
 
 void main() {
-    // TODO#A4: Implement the reflectance function here.
-    gl_FragColor = vec4(1.0); // placeholder
+  // TODO#A4: Implement the reflectance function here.
+  float PI = 3.14159265359;
+
+  // interpolating normals will change the length of the normal, so renormalize the normal.
+  vec3 N = normalize(vNormal);
+  vec3 V = normalize(-vPosition.xyz);
+
+  vec4 finalColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+  for (int i = 0; i < NUM_LIGHTS; i++) {
+    vec3 lightPosition = lightPositions[i];
+
+    float r = length(lightPosition - vPosition.xyz);
+    vec3 L = normalize(lightPosition - vPosition.xyz);
+    vec3 H = normalize(L + V);
+
+    // calculate Fresnal term
+    float F0 = 0.04;
+    float F = F0 + (1.0-F0) * pow(1.0-dot(V,H), 5.0);
+
+    // calculate Microfacet Distribution
+    float m2 = roughness*roughness;
+    float D = 1.0 / (m2*pow(dot(N,H), 4.0)) * exp((pow(dot(N,H), 2.0) - 1.0) / (m2*pow(dot(N,H), 2.0)));
+
+    // calculate Geometric Attenuation
+    float term1 = 1.0;
+    float term2 = 2.0 * dot(N,H) * dot(N,V) / dot(V,H);
+    float term3 = 2.0 * dot(N,H) * dot(N,L) / dot(V,H);
+    float G = min(min(term1, term2), term3);
+
+    // calculate final color
+    vec4 Kd = texture2D(diffuseTexture, vUv);
+    vec4 Ks = vec4(1.0, 1.0, 1.0, 0.0);
+    finalColor += (Ks * (F/PI) * D*G / (dot(N,V)*dot(N,L)) + Kd) * max(dot(N,L), 0.0) / (r*r);
+  }
+
+  gl_FragColor = finalColor * exposure;
 }
         </script>
 <!-----------------------------------------------------------------------------
